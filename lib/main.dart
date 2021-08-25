@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:company_clicker/employee_card.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:company_clicker/money_panel.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 
@@ -30,7 +32,7 @@ class _CompanyClickerState extends State<CompanyClicker> {
   int _money = 0;
 
   final List<Employee> employees = [
-    Employee('Intern', Icons.face, 10, 1, "Needs a lot of help"),
+    Employee('Intern', Icons.face, 15, 1, "Needs a lot of help"),
     Employee('Trainee', Icons.face, 100, 2, "Great effort"),
     Employee('Lazy Co-Worker', Icons.face, 1000, 3,
         "I'm still working on that one thing.."),
@@ -51,35 +53,31 @@ class _CompanyClickerState extends State<CompanyClicker> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black54,
-      body: Column(children: [
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.4,
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            IconButton(
-              icon: const Icon(Icons.money),
-              iconSize: 100,
-              color: Colors.green,
-              onPressed: () => updateMoney(1),
+      body: Center(
+        child: Container(
+          constraints: BoxConstraints(maxWidth: 500),
+          alignment: Alignment.center,
+          child: Column(children: [
+            SizedBox(
+              height: max(MediaQuery.of(context).size.height * 0.4, 200),
+              child:
+                  MoneyPanelWidget(money: _money, onWork: () => updateMoney(1)),
             ),
-            Text(
-              '$_money€',
-              style: const TextStyle(fontSize: 30, color: Colors.green),
+            Expanded(
+              child: ListView(
+                scrollDirection: Axis.vertical,
+                shrinkWrap: true,
+                children: employees
+                    .map((employee) => EmployeeCard(
+                        employee: employee,
+                        onHire: () => hireEmployee(employee),
+                        affordable: _money ~/ employee.cost))
+                    .toList(),
+              ),
             ),
           ]),
         ),
-        Expanded(
-          child: ListView(
-            scrollDirection: Axis.vertical,
-            shrinkWrap: true,
-            children: employees
-                .map((employee) => EmployeeCard(
-                    employee: employee,
-                    onHire: () => hireEmployee(employee),
-                    affordable: _money ~/ employee.cost))
-                .toList(),
-          ),
-        ),
-      ]),
+      ),
     );
   }
 
@@ -94,7 +92,7 @@ class _CompanyClickerState extends State<CompanyClicker> {
     setState(() {
       _money += amount;
       for (var employee in employees) {
-        if (_money > employee.cost) {
+        if (_money >= employee.cost) {
           employee.visible = true;
         }
       }
