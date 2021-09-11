@@ -51,9 +51,9 @@ class EmployeeCard extends StatelessWidget {
                     child: Text(
                       "Hire (Costs ${employee.cost})",
                     ),
-                    style: ElevatedButton.styleFrom(
-                      primary: affordable > 0 ?Colors.blue:Colors.black12,
-                    ),
+                    // style: ElevatedButton.styleFrom(
+                    //   primary: affordable > 0 ?Colors.blue:Colors.black12,
+                    // ),
                   ),
                 ],
               ),

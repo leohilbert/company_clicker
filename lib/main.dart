@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:company_clicker/employee_card.dart';
+import 'package:company_clicker/money_gained_event.dart';
 import 'package:company_clicker/money_panel.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +17,9 @@ class CompanyClickerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
         title: 'Company Clicker',
-        theme: ThemeData(),
+        theme: ThemeData(
+          scaffoldBackgroundColor: Colors.black,
+        ),
         home: const CompanyClicker());
   }
 }
@@ -30,29 +33,19 @@ class CompanyClicker extends StatefulWidget {
 
 class _CompanyClickerState extends State<CompanyClicker> {
   int _money = 0;
+  StreamController<MoneyGainedEvent> eventController =
+      StreamController<MoneyGainedEvent>.broadcast();
 
   final List<Employee> employees = [
-    Employee('Intern', Icons.face, 15, 1, "Needs a lot of help"),
-    Employee('Trainee', Icons.face, 100, 2, "Great effort"),
-    Employee('Lazy Co-Worker', Icons.face, 1000, 3,
-        "I'm still working on that one thing.."),
+    Employee('Intern', "Needs a lot of help", Icons.face, 15, 1, 1000),
+    Employee('Trainee', "Great effort", Icons.face, 100, 2, 1000),
+    Employee('Lazy Co-Worker', "I'm still working on that one thing..",
+        Icons.face, 1000, 3, 1000),
   ];
-
-  @override
-  void initState() {
-    super.initState();
-
-    Timer.periodic(const Duration(seconds: 1), (timer) {
-      for (var employee in employees) {
-        updateMoney(employee.amount * employee.work);
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black54,
       body: Center(
         child: Container(
           constraints: BoxConstraints(maxWidth: 500),
@@ -60,8 +53,10 @@ class _CompanyClickerState extends State<CompanyClicker> {
           child: Column(children: [
             SizedBox(
               height: max(MediaQuery.of(context).size.height * 0.4, 200),
-              child:
-                  MoneyPanelWidget(money: _money, onWork: () => updateMoney(1)),
+              child: MoneyPanelWidget(
+                  money: _money,
+                  onWork: () => updateMoney(1),
+                  eventController: eventController),
             ),
             Expanded(
               child: ListView(
@@ -75,6 +70,13 @@ class _CompanyClickerState extends State<CompanyClicker> {
                     .toList(),
               ),
             ),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: TextButton(
+                child: Text("Cheat"),
+                onPressed: () => updateMoney(1000),
+              ),
+            ),
           ]),
         ),
       ),
@@ -85,6 +87,10 @@ class _CompanyClickerState extends State<CompanyClicker> {
     return setState(() {
       _money -= employee.cost;
       employee.amount++;
+
+      Timer.periodic(Duration(milliseconds: employee.speed), (timer) {
+        updateMoney(employee.moneyPerTick);
+      });
     });
   }
 
@@ -96,7 +102,14 @@ class _CompanyClickerState extends State<CompanyClicker> {
           employee.visible = true;
         }
       }
+      eventController.sink.add(new MoneyGainedEvent(amount));
     });
+  }
+
+  @override
+  void dispose() {
+    eventController.close();
+    super.dispose();
   }
 }
 
@@ -105,9 +118,11 @@ class Employee {
   IconData icon;
   int amount = 0;
   int cost;
-  int work;
+  int moneyPerTick;
+  int speed;
   String description;
   bool visible = false;
 
-  Employee(this.name, this.icon, this.cost, this.work, this.description);
+  Employee(this.name, this.description, this.icon, this.cost, this.moneyPerTick,
+      this.speed);
 }

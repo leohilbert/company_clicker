@@ -3,8 +3,6 @@
     "short_name": "company_clicker",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
     "description": "Build up your own Company",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
