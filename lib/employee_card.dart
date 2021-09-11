@@ -1,4 +1,4 @@
-import 'package:company_clicker/main.dart';
+import 'package:company_clicker/persistence.dart';
 import 'package:flutter/material.dart';
 
 class EmployeeCard extends StatelessWidget {
@@ -66,7 +66,8 @@ class EmployeeCard extends StatelessWidget {
                     "Upgrade (Costs ${employee.upgradeCost()})",
                   ),
                   style: ElevatedButton.styleFrom(
-                    primary: upgradeAffordable > 0 ? Colors.blue : Colors.black12,
+                    primary:
+                        upgradeAffordable > 0 ? Colors.blue : Colors.black12,
                   ),
                 ),
               ],

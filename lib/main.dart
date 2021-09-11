@@ -2,16 +2,25 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:company_clicker/employee_card.dart';
-import 'package:company_clicker/money_gained_event.dart';
+import 'package:company_clicker/money_changed_event.dart';
 import 'package:company_clicker/money_panel.dart';
+import 'package:company_clicker/persistence.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() => runApp(const CompanyClickerApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(CompanyClickerApp(prefs: await SharedPreferences.getInstance()));
+}
 
 class CompanyClickerApp extends StatelessWidget {
-  const CompanyClickerApp({Key? key}) : super(key: key);
+  final Persistence persistence;
+
+  CompanyClickerApp({Key? key, required SharedPreferences prefs})
+      : persistence = new Persistence(prefs),
+        super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -20,44 +29,37 @@ class CompanyClickerApp extends StatelessWidget {
         theme: ThemeData(
           scaffoldBackgroundColor: Colors.black,
         ),
-        home: const CompanyClicker());
+        home: CompanyClicker(persistence));
   }
 }
 
 class CompanyClicker extends StatefulWidget {
-  const CompanyClicker({Key? key}) : super(key: key);
+  final Persistence persistence;
+
+  CompanyClicker(this.persistence, {Key? key}) : super(key: key);
 
   @override
   _CompanyClickerState createState() => _CompanyClickerState();
 }
 
 class _CompanyClickerState extends State<CompanyClicker> {
-  int _money = 0;
-  StreamController<MoneyGainedEvent> eventController =
-      StreamController<MoneyGainedEvent>.broadcast();
+  StreamController<MoneyChangedEvent> eventController =
+      StreamController<MoneyChangedEvent>.broadcast();
+  Random _random = new Random();
 
-  final List<Employee> employees = [
-    Employee('Unpaid Intern', "makes coffee", Icons.face, 15, 2, 0.5),
-    Employee('Intern', "makes better coffee", Icons.face, 100, 2, 1),
-    Employee('Trainee', "eager to learn", Icons.face, 1100, 8, 1),
-    Employee('Lazy Co-Worker', "only here to browse facebook", Icons.face,
-        12000, 47, 1),
-    Employee('College-Grad', "knows everything", Icons.face, 130000, 260, 1),
-    Employee('9-5er', "production is down? i'll check on monday", Icons.face,
-        1400000, 1400, 1),
-    Employee('Motivated Employee', "i have no personal life", Icons.face,
-        20000000, 7800, 1),
-    Employee('Senior', "i'm old", Icons.face, 330000000, 44000, 1),
-    Employee('CEO', "MORE GROWTH", Icons.face, 5100000000, 260000, 1),
-    Employee(
-        'Company Owner', "MORE MONEY", Icons.face, 75000000000, 1600000, 1),
-    Employee(
-        'Government', "MORE TAXES", Icons.face, 1000000000000, 10000000, 1),
-    Employee('Government Government', "controls.. the government..?",
-        Icons.face, 14000000000000, 65000000, 1),
-    Employee('Ruler', "o_o", Icons.face, 170000000000000, 430000000, 1),
-    Employee('Literal God', "", Icons.face, 2100000000000000, 2900000000, 1),
-  ];
+  @override
+  void initState() {
+    super.initState();
+
+    widget.persistence.employees.forEach((employee) {
+      for (int i = 1; i <= employee.amount; i++) {
+        Future.delayed(
+            Duration(milliseconds: (_random.nextDouble() * 2000).toInt()), () {
+          startEmployeeTimer(i, employee);
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,31 +72,46 @@ class _CompanyClickerState extends State<CompanyClicker> {
             SizedBox(
               height: max(MediaQuery.of(context).size.height * 0.4, 200),
               child: MoneyPanelWidget(
-                  money: _money,
-                  onWork: () => updateMoney(1),
-                  eventController: eventController),
+                money: widget.persistence.money,
+                onWork: () => updateMoney(1),
+                eventController: eventController,
+                random: _random,
+              ),
             ),
             Expanded(
               child: ListView(
                 scrollDirection: Axis.vertical,
                 shrinkWrap: true,
-                children: employees
+                children: widget.persistence.employees
                     .map((employee) => EmployeeCard(
                         key: employee.key,
                         employee: employee,
                         onHire: () => hireEmployee(employee),
                         onUpgrade: () => upgradeEmployee(employee),
-                        buyAffordable: _money ~/ employee.cost,
-                        upgradeAffordable: _money ~/ employee.upgradeCost()))
+                        buyAffordable:
+                            widget.persistence.money ~/ employee.cost,
+                        upgradeAffordable:
+                            widget.persistence.money ~/ employee.upgradeCost()))
                     .toList(),
               ),
             ),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: TextButton(
-                child: Text("Cheat"),
-                onPressed: () => updateMoney(1000),
-              ),
+            Stack(
+              children: [
+                Align(
+                  alignment: Alignment.bottomLeft,
+                  child: TextButton(
+                    child: Text("Reset"),
+                    onPressed: () => reset(),
+                  ),
+                ),
+                // Align(
+                //   alignment: Alignment.bottomRight,
+                //   child: TextButton(
+                //     child: Text("Cheat"),
+                //     onPressed: () => updateMoney(1000),
+                //   ),
+                // ),
+              ],
             ),
           ]),
         ),
@@ -102,35 +119,45 @@ class _CompanyClickerState extends State<CompanyClicker> {
     );
   }
 
+  updateMoney(int money) {
+    setState(() {
+      widget.persistence.updateMoney(money);
+      eventController.sink.add(new MoneyChangedEvent(money));
+    });
+  }
+
   void hireEmployee(Employee employee) {
     updateMoney(-employee.cost);
     return setState(() {
-      employee.amount++;
+      widget.persistence.hireEmployee(employee);
 
-      Timer.periodic(
-          Duration(milliseconds: (1000 / employee.clicksPerSecond).round()),
-          (timer) {
+      startEmployeeTimer(employee.amount, employee);
+    });
+  }
+
+  reset() {
+    return setState(() {
+      widget.persistence.reset();
+    });
+  }
+
+  void startEmployeeTimer(int employeeNumber, Employee employee) {
+    Timer.periodic(
+        Duration(milliseconds: (1000 / employee.clicksPerSecond).round()),
+        (timer) {
+      //print("${employee.name} -> ${employeeNumber}");
+      if (employee.amount >= employeeNumber) {
         updateMoney(pow(employee.moneyPerTick, employee.upgradeLevel).toInt());
-      });
+      } else {
+        timer.cancel();
+      }
     });
   }
 
   void upgradeEmployee(Employee employee) {
     updateMoney(-employee.upgradeCost());
     return setState(() {
-      employee.upgradeLevel++;
-    });
-  }
-
-  void updateMoney(int amount) {
-    setState(() {
-      _money += amount;
-      for (var employee in employees) {
-        if (_money >= employee.cost) {
-          employee.visible = true;
-        }
-      }
-      eventController.sink.add(new MoneyGainedEvent(amount));
+      widget.persistence.upgradeEmployee(employee);
     });
   }
 
@@ -138,25 +165,5 @@ class _CompanyClickerState extends State<CompanyClicker> {
   void dispose() {
     eventController.close();
     super.dispose();
-  }
-}
-
-class Employee {
-  final Key key = UniqueKey();
-  String name;
-  String description;
-  IconData icon;
-  int cost;
-  double clicksPerSecond;
-  int moneyPerTick;
-  int amount = 0;
-  int upgradeLevel = 1;
-  bool visible = false;
-
-  Employee(this.name, this.description, this.icon, this.cost, this.moneyPerTick,
-      this.clicksPerSecond);
-
-  upgradeCost() {
-    return cost * pow(10, upgradeLevel);
   }
 }
