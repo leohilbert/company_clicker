@@ -37,10 +37,26 @@ class _CompanyClickerState extends State<CompanyClicker> {
       StreamController<MoneyGainedEvent>.broadcast();
 
   final List<Employee> employees = [
-    Employee('Intern', "Needs a lot of help", Icons.face, 15, 1, 1000),
-    Employee('Trainee', "Great effort", Icons.face, 100, 2, 1000),
-    Employee('Lazy Co-Worker', "I'm still working on that one thing..",
-        Icons.face, 1000, 3, 1000),
+    Employee('Unpaid Intern', "makes coffee", Icons.face, 15, 2, 0.5),
+    Employee('Intern', "makes better coffee", Icons.face, 100, 2, 1),
+    Employee('Trainee', "eager to learn", Icons.face, 1100, 8, 1),
+    Employee('Lazy Co-Worker', "only here to browse facebook", Icons.face,
+        12000, 47, 1),
+    Employee('College-Grad', "knows everything", Icons.face, 130000, 260, 1),
+    Employee('9-5er', "production is down? i'll check on monday", Icons.face,
+        1400000, 1400, 1),
+    Employee('Motivated Employee', "i have no personal life", Icons.face,
+        20000000, 7800, 1),
+    Employee('Senior', "i'm old", Icons.face, 330000000, 44000, 1),
+    Employee('CEO', "MORE GROWTH", Icons.face, 5100000000, 260000, 1),
+    Employee(
+        'Company Owner', "MORE MONEY", Icons.face, 75000000000, 1600000, 1),
+    Employee(
+        'Government', "MORE TAXES", Icons.face, 1000000000000, 10000000, 1),
+    Employee('Government Government', "controls.. the government..?",
+        Icons.face, 14000000000000, 65000000, 1),
+    Employee('Ruler', "o_o", Icons.face, 170000000000000, 430000000, 1),
+    Employee('Literal God', "", Icons.face, 2100000000000000, 2900000000, 1),
   ];
 
   @override
@@ -64,9 +80,12 @@ class _CompanyClickerState extends State<CompanyClicker> {
                 shrinkWrap: true,
                 children: employees
                     .map((employee) => EmployeeCard(
+                        key: employee.key,
                         employee: employee,
                         onHire: () => hireEmployee(employee),
-                        affordable: _money ~/ employee.cost))
+                        onUpgrade: () => upgradeEmployee(employee),
+                        buyAffordable: _money ~/ employee.cost,
+                        upgradeAffordable: _money ~/ employee.upgradeCost()))
                     .toList(),
               ),
             ),
@@ -84,13 +103,22 @@ class _CompanyClickerState extends State<CompanyClicker> {
   }
 
   void hireEmployee(Employee employee) {
+    updateMoney(-employee.cost);
     return setState(() {
-      _money -= employee.cost;
       employee.amount++;
 
-      Timer.periodic(Duration(milliseconds: employee.speed), (timer) {
-        updateMoney(employee.moneyPerTick);
+      Timer.periodic(
+          Duration(milliseconds: (1000 / employee.clicksPerSecond).round()),
+          (timer) {
+        updateMoney(pow(employee.moneyPerTick, employee.upgradeLevel).toInt());
       });
+    });
+  }
+
+  void upgradeEmployee(Employee employee) {
+    updateMoney(-employee.upgradeCost());
+    return setState(() {
+      employee.upgradeLevel++;
     });
   }
 
@@ -114,15 +142,21 @@ class _CompanyClickerState extends State<CompanyClicker> {
 }
 
 class Employee {
+  final Key key = UniqueKey();
   String name;
-  IconData icon;
-  int amount = 0;
-  int cost;
-  int moneyPerTick;
-  int speed;
   String description;
+  IconData icon;
+  int cost;
+  double clicksPerSecond;
+  int moneyPerTick;
+  int amount = 0;
+  int upgradeLevel = 1;
   bool visible = false;
 
   Employee(this.name, this.description, this.icon, this.cost, this.moneyPerTick,
-      this.speed);
+      this.clicksPerSecond);
+
+  upgradeCost() {
+    return cost * pow(10, upgradeLevel);
+  }
 }

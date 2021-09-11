@@ -42,11 +42,7 @@ class _MoneyPanelWidgetState extends State<MoneyPanelWidget>
     this.eventSubscription =
         widget._eventController.stream.asBroadcastStream().listen(
               (event) => {
-                if (event is MoneyGainedEvent)
-                  {
-                    moneyParticles.add(new MoneyParticleDto(UniqueKey(),
-                        random.nextDouble(), random.nextDouble(), event.amount))
-                  },
+                if (event is MoneyGainedEvent) this.updateMoneyParticles(event)
               },
             );
   }
@@ -104,6 +100,18 @@ class _MoneyPanelWidgetState extends State<MoneyPanelWidget>
         ]),
       ],
     );
+  }
+
+  updateMoneyParticles(MoneyGainedEvent event) {
+    if (event is MoneyGainedEvent) {
+      moneyParticles.add(new MoneyParticleDto(
+          UniqueKey(), random.nextDouble(), random.nextDouble(), event.amount));
+      const maxParticles = 50;
+      if (moneyParticles.length > maxParticles) {
+        moneyParticles.sort((a, b) => b.amount.compareTo(a.amount));
+        moneyParticles.removeRange(maxParticles, moneyParticles.length);
+      }
+    }
   }
 
   @override
